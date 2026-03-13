@@ -376,7 +376,7 @@ if(!S.rules) S.rules='';
 if(!S.bias) S.bias='';
 if(!S.biasNote) S.biasNote='';
 
-let pnlPeriod='week', ssTab='tp';
+let pnlPeriod='week', ssTab='tp', editingId=null;
 let tForm={parite:null,sess:null,dir:null,res:null};
 
 function sv(){localStorage.setItem('tl3',JSON.stringify(S));}
@@ -528,21 +528,47 @@ function setupJournal(){
     });
   });
 
-  document.getElementById('newTradeBtn').addEventListener('click',()=>document.getElementById('tradeModal').classList.add('open'));
-  document.getElementById('cancelTradeBtn').addEventListener('click',()=>document.getElementById('tradeModal').classList.remove('open'));
+  document.getElementById('newTradeBtn').addEventListener('click',()=>{
+    editingId=null;
+    document.getElementById('saveTradeBtn').textContent='Kaydet';
+    document.getElementById('tradeModal').classList.add('open');
+  });
+  document.getElementById('cancelTradeBtn').addEventListener('click',()=>{
+    editingId=null;
+    document.getElementById('saveTradeBtn').textContent='Kaydet';
+    document.getElementById('tradeModal').classList.remove('open');
+  });
   document.getElementById('saveTradeBtn').addEventListener('click',()=>{
     if(!tForm.parite||!tForm.sess||!tForm.dir||!tForm.res){alert('Tüm alanları seç!');return;}
     const risk = parseFloat(document.getElementById('tRisk').value)||0;
-    const trade = {id:Date.now(),date:new Date().toISOString(),parite:tForm.parite,sess:tForm.sess,dir:tForm.dir,res:tForm.res,risk,psych:document.getElementById('tPsych').value};
-    S.trades.unshift(trade);
+    const psych = document.getElementById('tPsych').value;
 
-    // Update balance if account exists and risk is set
-    if(S.account.size && risk > 0) {
-      const riskAmt = S.account.size * risk / 100;
-      if(tForm.res === 'sl') {
-        S.account.balance = (S.account.balance || S.account.size) - riskAmt;
-      } else if(tForm.res === 'tp') {
-        S.account.balance = (S.account.balance || S.account.size) + riskAmt;
+    if(editingId) {
+      // Edit mode — reverse old balance effect then apply new
+      const old = S.trades.find(x=>x.id===editingId);
+      if(old && S.account.size && old.risk > 0){
+        const amt = S.account.size * old.risk / 100;
+        if(old.res==='sl') S.account.balance = (S.account.balance||S.account.size) + amt;
+        else if(old.res==='tp') S.account.balance = (S.account.balance||S.account.size) - amt;
+      }
+      const idx = S.trades.findIndex(x=>x.id===editingId);
+      S.trades[idx] = {...old, parite:tForm.parite, sess:tForm.sess, dir:tForm.dir, res:tForm.res, risk, psych};
+      // Apply new
+      if(S.account.size && risk > 0){
+        const amt = S.account.size * risk / 100;
+        if(tForm.res==='sl') S.account.balance = (S.account.balance||S.account.size) - amt;
+        else if(tForm.res==='tp') S.account.balance = (S.account.balance||S.account.size) + amt;
+      }
+      editingId=null;
+      document.getElementById('saveTradeBtn').textContent='Kaydet';
+    } else {
+      // New trade
+      const trade = {id:Date.now(),date:new Date().toISOString(),parite:tForm.parite,sess:tForm.sess,dir:tForm.dir,res:tForm.res,risk,psych};
+      S.trades.unshift(trade);
+      if(S.account.size && risk > 0){
+        const riskAmt = S.account.size * risk / 100;
+        if(tForm.res==='sl') S.account.balance = (S.account.balance||S.account.size) - riskAmt;
+        else if(tForm.res==='tp') S.account.balance = (S.account.balance||S.account.size) + riskAmt;
       }
     }
 
@@ -566,7 +592,7 @@ function renderTrades(){
     const ds=d.toLocaleDateString('tr-TR')+' '+d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
     const sl={london:'🇬🇧 London',ny:'🗽 NY',pm:'🌆 PM'}[t.sess]||t.sess;
     const rl={tp:'TP',sl:'SL',be:'BE',miss:'Kaçtı'}[t.res];
-    return`<div class="trade-item ${t.res}">
+    return`<div class="trade-item ${t.res}" data-id="${t.id}">
       <div class="trade-top"><div class="trade-date">${ds}</div><div class="trade-badge ${t.res}">${rl}</div></div>
       <div class="trade-tags">
         <span class="trade-tag">${PE[t.parite]||''} ${t.parite}</span>
@@ -577,8 +603,37 @@ function renderTrades(){
         </span>`:''}
       </div>
       ${t.psych?`<div class="trade-psych">"${t.psych}"</div>`:''}
+      <div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+        <button class="edit-btn" data-id="${t.id}" style="flex:1;padding:7px;border-radius:8px;background:rgba(0,151,255,0.1);border:1px solid rgba(0,151,255,0.3);color:var(--accent2);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer">✏️ Düzenle</button>
+        <button class="del-btn" data-id="${t.id}" style="flex:1;padding:7px;border-radius:8px;background:rgba(255,77,106,0.1);border:1px solid rgba(255,77,106,0.3);color:var(--red);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer">🗑 Sil</button>
+      </div>
     </div>`;
   }).join('');
+
+  // Delete
+  el.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(!confirm('Bu işlemi silmek istiyor musun?')) return;
+      const t = S.trades.find(x=>String(x.id)===btn.dataset.id);
+      // Reverse balance effect
+      if(t && S.account.size && t.risk > 0){
+        const amt = S.account.size * t.risk / 100;
+        if(t.res==='sl') S.account.balance = (S.account.balance||S.account.size) + amt;
+        else if(t.res==='tp') S.account.balance = (S.account.balance||S.account.size) - amt;
+      }
+      S.trades=S.trades.filter(x=>String(x.id)!==btn.dataset.id);
+      sv(); renderTrades(); renderAcc(); updateDD();
+    });
+  });
+
+  // Edit
+  el.querySelectorAll('.edit-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const t = S.trades.find(x=>String(x.id)===btn.dataset.id);
+      if(!t) return;
+      openEditModal(t);
+    });
+  });
 }
 
 // PNL
@@ -710,6 +765,44 @@ function renderAcc(){
   document.getElementById('inputBal').value=a.balance;
   document.getElementById('inputMaxDD').value=a.maxDD||10;
   updateDD();
+}
+
+function openEditModal(t){
+  // Re-use trade modal but pre-fill
+  editingId = t.id;
+
+  // Pre-select parite
+  tForm.parite=t.parite;
+  document.getElementById('tPariteRow').querySelectorAll('.sel-btn').forEach(b=>{
+    b.className='sel-btn';
+    if(b.textContent.includes(t.parite)) b.className='sel-btn a-'+t.parite.toLowerCase();
+  });
+
+  // Pre-select session
+  tForm.sess=t.sess;
+  document.getElementById('tSessRow').querySelectorAll('.sel-btn').forEach(b=>{
+    b.className='sel-btn';
+    if(b.dataset&&b.textContent) {
+      const sid = t.sess==='london'?'London':t.sess==='ny'?'NY':'PM';
+      if(b.textContent.includes(sid)) b.className='sel-btn a-'+t.sess;
+    }
+  });
+
+  // Dir
+  tForm.dir=t.dir;
+  document.getElementById('tLong').className='sel-btn'+(t.dir==='long'?' a-long':'');
+  document.getElementById('tShort').className='sel-btn'+(t.dir==='short'?' a-short':'');
+
+  // Res
+  tForm.res=t.res;
+  ['tTP','tSL','tBE','tMiss'].forEach(id=>document.getElementById(id).className='sel-btn');
+  const resMap={tp:'tTP',sl:'tSL',be:'tBE',miss:'tMiss'};
+  if(resMap[t.res]) document.getElementById(resMap[t.res]).className='sel-btn a-'+t.res;
+
+  document.getElementById('tRisk').value=t.risk||'';
+  document.getElementById('tPsych').value=t.psych||'';
+  document.getElementById('saveTradeBtn').textContent='Güncelle';
+  document.getElementById('tradeModal').classList.add('open');
 }
 
 // INIT
