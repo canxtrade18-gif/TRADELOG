@@ -355,7 +355,7 @@ tr:last-child td { border-bottom: none; }
         <button class="sel-btn" id="tMiss">👁 Kaçtı</button>
       </div>
     </div>
-    <div class="form-row"><label class="form-label">RR</label><input type="number" id="tRR" placeholder="Örn: 2.5"></div>
+    <div class="form-row"><label class="form-label">Risk %</label><input type="number" id="tRisk" placeholder="Örn: 0.25" step="0.01"></div>
     <div class="form-row"><label class="form-label">Psikoloji Notu</label><textarea id="tPsych" rows="3" placeholder="Neden aldın / almadın?"></textarea></div>
     <div class="divider"></div>
     <button class="btn" id="saveTradeBtn" style="width:100%;padding:14px;font-size:15px">Kaydet</button>
@@ -532,14 +532,27 @@ function setupJournal(){
   document.getElementById('cancelTradeBtn').addEventListener('click',()=>document.getElementById('tradeModal').classList.remove('open'));
   document.getElementById('saveTradeBtn').addEventListener('click',()=>{
     if(!tForm.parite||!tForm.sess||!tForm.dir||!tForm.res){alert('Tüm alanları seç!');return;}
-    S.trades.unshift({id:Date.now(),date:new Date().toISOString(),parite:tForm.parite,sess:tForm.sess,dir:tForm.dir,res:tForm.res,rr:document.getElementById('tRR').value,psych:document.getElementById('tPsych').value});
-    sv(); renderTrades();
+    const risk = parseFloat(document.getElementById('tRisk').value)||0;
+    const trade = {id:Date.now(),date:new Date().toISOString(),parite:tForm.parite,sess:tForm.sess,dir:tForm.dir,res:tForm.res,risk,psych:document.getElementById('tPsych').value};
+    S.trades.unshift(trade);
+
+    // Update balance if account exists and risk is set
+    if(S.account.size && risk > 0) {
+      const riskAmt = S.account.size * risk / 100;
+      if(tForm.res === 'sl') {
+        S.account.balance = (S.account.balance || S.account.size) - riskAmt;
+      } else if(tForm.res === 'tp') {
+        S.account.balance = (S.account.balance || S.account.size) + riskAmt;
+      }
+    }
+
+    sv(); renderTrades(); renderAcc(); updateDD();
     document.getElementById('tradeModal').classList.remove('open');
     tForm={parite:null,sess:null,dir:null,res:null};
     document.getElementById('tPariteRow').querySelectorAll('.sel-btn').forEach(b=>b.className='sel-btn');
     document.getElementById('tSessRow').querySelectorAll('.sel-btn').forEach(b=>b.className='sel-btn');
     ['tLong','tShort','tTP','tSL','tBE','tMiss'].forEach(id=>document.getElementById(id).className='sel-btn');
-    document.getElementById('tRR').value='';
+    document.getElementById('tRisk').value='';
     document.getElementById('tPsych').value='';
   });
   renderTrades();
@@ -558,7 +571,10 @@ function renderTrades(){
       <div class="trade-tags">
         <span class="trade-tag">${PE[t.parite]||''} ${t.parite}</span>
         <span class="trade-tag">${sl}</span>
-        <span class="trade-tag">${t.dir==='long'?'📈 Long':'📉 Short'}${t.rr?' · '+t.rr+'R':''}</span>
+        <span class="trade-tag">${t.dir==='long'?'📈 Long':'📉 Short'}</span>
+        ${t.risk&&S.account.size?`<span class="trade-tag" style="color:${t.res==='tp'?'var(--green)':t.res==='sl'?'var(--red)':'var(--muted)'}">
+          ${t.res==='tp'?'+':t.res==='sl'?'-':''}$${(S.account.size*t.risk/100).toFixed(0)}
+        </span>`:''}
       </div>
       ${t.psych?`<div class="trade-psych">"${t.psych}"</div>`:''}
     </div>`;
@@ -603,22 +619,28 @@ function renderPnl(){
       const wr2 = tot2 > 0 ? Math.round(tp2/tot2*100) : null;
       const wrColor = wr2===null ? 'var(--muted)' : wr2>=60 ? 'var(--green)' : wr2>=40 ? 'var(--yellow)' : 'var(--red)';
       const sLabel = {london:'London',ny:'NY',pm:'PM'}[s.id];
-      return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 10px;text-align:center;">
-        <div style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">${sLabel}</div>
-        <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${wrColor};margin-bottom:4px">${wr2!==null?wr2+'%':'—'}</div>
-        <div style="font-size:10px;color:var(--muted);margin-bottom:6px">${tp2}TP · ${sl2}SL</div>
-        <div style="background:var(--muted2);border-radius:99px;height:4px;overflow:hidden">
+      return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 10px;text-align:center;">
+        <div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:700">${sLabel}</div>
+        <div style="font-family:'Space Mono',monospace;font-size:28px;font-weight:700;color:${wrColor};margin-bottom:8px;line-height:1">${wr2!==null?wr2+'%':'—'}</div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px">
+          <span style="color:var(--green)">${tp2}TP</span>
+          <span style="color:var(--muted);margin:0 4px">·</span>
+          <span style="color:var(--red)">${sl2}SL</span>
+        </div>
+        <div style="background:var(--muted2);border-radius:99px;height:5px;overflow:hidden">
           <div style="height:100%;width:${wr2||0}%;background:${wrColor};border-radius:99px;transition:width 0.4s"></div>
         </div>
       </div>`;
     }).join('');
     const alltp = pt.filter(t=>t.res==='tp').length;
     const allsl = pt.filter(t=>t.res==='sl').length;
-    const allnet = alltp-allsl;
+    const alltot = alltp+allsl;
+    const allwr = alltot > 0 ? Math.round(alltp/alltot*100) : null;
+    const allwrColor = allwr===null?'var(--muted)':allwr>=60?'var(--green)':allwr>=40?'var(--yellow)':'var(--red)';
     return `<div style="margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-size:15px;font-weight:800">${PE[p]} ${p}</div>
-        <div style="font-family:'Space Mono',monospace;font-size:13px;color:${allnet>=0?'var(--green)':'var(--red)'}">${allnet>=0?'+':''}${allnet}R · ${alltp+allsl} işlem</div>
+        <div style="font-family:'Space Mono',monospace;font-size:13px;color:${allwrColor}">${allwr!==null?(allwr>=50?'+':'')+allwr+'%':'—'} · ${alltot} işlem</div>
       </div>
       <div style="display:flex;gap:8px">${sessCards}</div>
     </div>`;
