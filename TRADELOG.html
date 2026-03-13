@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TradeLog">
+<title>TradeLog</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080c0f; --surface: #0d1318; --surface2: #111920; --border: #1e2d38;
+  --accent: #00d4aa; --accent2: #0097ff; --red: #ff4d6a; --green: #00d4aa;
+  --yellow: #ffc847; --text: #e8f0f5; --muted: #4a6070; --muted2: #2a3d4a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; padding-bottom: 90px; overflow-x: hidden; }
+
+.header { background: linear-gradient(180deg,#0a1520 0%,var(--bg) 100%); padding: 54px 20px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.header-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.header-title span { color: var(--accent); }
+.header-date { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+
+.nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(8,12,15,0.96); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; padding: 10px 0 24px; z-index: 100; }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; padding: 6px 0; }
+.nav-icon { font-size: 20px; }
+.nav-label { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; }
+.nav-item.active .nav-label { color: var(--accent); }
+.nav-item.active .nav-icon { filter: drop-shadow(0 0 6px var(--accent)); }
+
+.page { display: none; padding: 20px; }
+.page.active { display: block; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+.card-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+
+.tab-row { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+.tab-row::-webkit-scrollbar { display: none; }
+.tab-pill { flex-shrink: 0; padding: 8px 14px; border-radius: 99px; background: var(--surface2); border: 1.5px solid var(--border); color: var(--muted); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; user-select: none; -webkit-user-select: none; transition: all 0.2s; }
+.tab-pill.active { border-color: var(--accent2); color: var(--accent2); background: rgba(0,151,255,0.1); }
+.tab-pill.active.eu { border-color: var(--accent); color: var(--accent); background: rgba(0,212,170,0.1); }
+.tab-pill.active.gu { border-color: var(--yellow); color: var(--yellow); background: rgba(255,200,71,0.1); }
+.tab-pill.active.xau { border-color: #ffa032; color: #ffa032; background: rgba(255,160,50,0.1); }
+.tab-pill.active.others { border-color: var(--muted); color: var(--text); background: rgba(74,96,112,0.2); }
+
+.sess-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.sess-pill { flex: 1; padding: 9px; border-radius: 10px; background: var(--surface2); border: 1.5px solid var(--border); color: var(--muted); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; text-align: center; user-select: none; -webkit-user-select: none; transition: all 0.2s; }
+.sess-pill.active { background: rgba(0,151,255,0.15); border-color: var(--accent2); color: var(--accent2); }
+
+.check-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; -webkit-user-select: none; }
+.check-item:last-child { border-bottom: none; }
+.check-box { width: 24px; height: 24px; border: 2px solid var(--muted2); border-radius: 6px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s; }
+.check-item.checked .check-box { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px rgba(0,212,170,0.3); }
+.check-item.checked .check-label { color: var(--muted); text-decoration: line-through; }
+.check-label { font-size: 14px; font-weight: 600; flex: 1; }
+.check-sublabel { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; margin-top: 2px; }
+.check-item.main-conf .check-box { border-color: var(--accent2); }
+.check-item.main-conf.checked .check-box { background: var(--accent2); border-color: var(--accent2); box-shadow: 0 0 12px rgba(0,151,255,0.4); }
+
+.score-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.score-label { font-size: 13px; font-weight: 600; }
+.score-val { font-family: 'Space Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent2); }
+.score-bar-bg { height: 8px; background: var(--muted2); border-radius: 99px; overflow: hidden; }
+.score-bar-fill { height: 100%; background: linear-gradient(90deg,var(--accent2),var(--accent)); border-radius: 99px; transition: width 0.4s; }
+.score-warn { margin-top: 12px; padding: 10px 14px; background: rgba(255,77,106,0.1); border: 1px solid rgba(255,77,106,0.3); border-radius: 10px; font-size: 13px; color: var(--red); font-weight: 600; text-align: center; display: none; }
+.score-ok { margin-top: 12px; padding: 10px 14px; background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.3); border-radius: 10px; font-size: 13px; color: var(--accent); font-weight: 600; text-align: center; display: none; }
+
+.bias-btns { display: flex; gap: 10px; }
+.bias-btn { flex: 1; padding: 12px; border-radius: 12px; border: 2px solid var(--border); background: transparent; color: var(--muted); font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
+.bias-btn.bull.active { background: rgba(0,212,170,0.15); border-color: var(--accent); color: var(--accent); }
+.bias-btn.bear.active { background: rgba(255,77,106,0.15); border-color: var(--red); color: var(--red); }
+textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px; padding: 12px; resize: none; margin-top: 10px; outline: none; }
+textarea:focus { border-color: var(--accent); }
+
+.btn { padding: 10px 18px; border-radius: 10px; background: var(--accent); color: var(--bg); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s; }
+.btn:active { transform: scale(0.96); }
+.btn.outline { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+input[type=number] { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'Space Mono', monospace; font-size: 14px; padding: 10px 12px; outline: none; width: 100%; }
+input:focus { border-color: var(--accent); }
+
+.form-row { margin-bottom: 14px; }
+.form-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; display: block; }
+.multi-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.sel-btn { padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--border); background: transparent; color: var(--muted); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+.sel-btn.a-eu { border-color: var(--accent); color: var(--accent); background: rgba(0,212,170,0.1); }
+.sel-btn.a-gu { border-color: var(--yellow); color: var(--yellow); background: rgba(255,200,71,0.1); }
+.sel-btn.a-xau { border-color: #ffa032; color: #ffa032; background: rgba(255,160,50,0.1); }
+.sel-btn.a-endeks { border-color: var(--accent2); color: var(--accent2); background: rgba(0,151,255,0.1); }
+.sel-btn.a-others { border-color: var(--muted); color: var(--text); background: rgba(74,96,112,0.2); }
+.sel-btn.a-london { border-color: var(--accent2); color: var(--accent2); background: rgba(0,151,255,0.1); }
+.sel-btn.a-ny { border-color: var(--accent); color: var(--accent); background: rgba(0,212,170,0.1); }
+.sel-btn.a-pm { border-color: var(--yellow); color: var(--yellow); background: rgba(255,200,71,0.1); }
+.sel-btn.a-long { border-color: var(--accent); color: var(--accent); background: rgba(0,212,170,0.1); }
+.sel-btn.a-short { border-color: var(--red); color: var(--red); background: rgba(255,77,106,0.1); }
+.sel-btn.a-tp { border-color: var(--accent); color: var(--accent); background: rgba(0,212,170,0.1); }
+.sel-btn.a-sl { border-color: var(--red); color: var(--red); background: rgba(255,77,106,0.1); }
+.sel-btn.a-be { border-color: var(--yellow); color: var(--yellow); background: rgba(255,200,71,0.1); }
+.sel-btn.a-miss { border-color: var(--muted); color: var(--text); background: rgba(74,96,112,0.2); }
+
+.trade-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px; position: relative; overflow: hidden; }
+.trade-item::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; }
+.trade-item.tp::before { background: var(--green); }
+.trade-item.sl::before { background: var(--red); }
+.trade-item.be::before { background: var(--yellow); }
+.trade-item.miss::before { background: var(--muted); }
+.trade-top { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.trade-date { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+.trade-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; }
+.trade-badge.tp { background: rgba(0,212,170,0.15); color: var(--green); }
+.trade-badge.sl { background: rgba(255,77,106,0.15); color: var(--red); }
+.trade-badge.be { background: rgba(255,200,71,0.15); color: var(--yellow); }
+.trade-badge.miss { background: rgba(74,96,112,0.2); color: var(--muted); }
+.trade-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.trade-tag { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
+.trade-psych { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px; }
+
+.pnl-period { display: flex; gap: 8px; margin-bottom: 16px; }
+.pnl-btn { flex: 1; padding: 8px; border-radius: 9px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; text-align: center; }
+.pnl-btn.active { background: rgba(0,212,170,0.1); border-color: var(--accent); color: var(--accent); }
+.pnl-big { font-family: 'Space Mono', monospace; font-size: 42px; font-weight: 700; text-align: center; padding: 16px 0; line-height: 1; }
+.pnl-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+.pnl-stat { background: var(--surface2); border-radius: 10px; padding: 12px; text-align: center; border: 1px solid var(--border); }
+.pnl-stat-val { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.pnl-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); padding: 8px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; text-align: center; }
+td { padding: 8px 6px; border-bottom: 1px solid var(--border); font-family: 'Space Mono', monospace; font-size: 11px; text-align: center; }
+td:first-child { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12px; color: var(--text); text-align: left; }
+tr:last-child td { border-bottom: none; }
+.c-g { color: var(--green); } .c-r { color: var(--red); } .c-y { color: var(--yellow); }
+
+.ss-type-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.ss-btn { flex: 1; padding: 10px; border-radius: 10px; background: var(--surface2); border: 1.5px solid var(--border); color: var(--muted); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; text-align: center; }
+.ss-btn.a-tp { background: rgba(0,212,170,0.15); border-color: var(--accent); color: var(--accent); }
+.ss-btn.a-stop { background: rgba(255,77,106,0.15); border-color: var(--red); color: var(--red); }
+.ss-area { border: 2px dashed var(--border); border-radius: 16px; padding: 28px 20px; text-align: center; cursor: pointer; margin-bottom: 14px; }
+.ss-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ss-thumb { position: relative; border-radius: 10px; overflow: hidden; aspect-ratio: 16/9; }
+.ss-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ss-del { position: absolute; top: 6px; right: 6px; background: rgba(255,77,106,0.9); color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: none; align-items: flex-end; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 24px 24px 0 0; padding: 24px 20px 44px; width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal-handle { width: 36px; height: 4px; background: var(--muted2); border-radius: 99px; margin: 0 auto 20px; }
+.modal-title { font-size: 18px; font-weight: 800; margin-bottom: 20px; }
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dd-item { background: var(--surface2); border-radius: 12px; padding: 14px; border: 1px solid var(--border); }
+.dd-lbl { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.dd-val { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; }
+.dd-val.r { color: var(--red); } .dd-val.g { color: var(--green); } .dd-val.y { color: var(--yellow); }
+
+.empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+.empty-icon { font-size: 36px; margin-bottom: 10px; }
+.mt8 { margin-top: 8px; } .mt16 { margin-top: 16px; }
+#fileInput { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">Trade<span>Log</span></div>
+    <div class="header-date" id="headerDate"></div>
+  </div>
+  <div style="text-align:right">
+    <div id="headerDD" style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;"></div>
+    <div style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace">drawdown</div>
+  </div>
+</div>
+
+<nav class="nav">
+  <div class="nav-item active" id="nav-checklist"><div class="nav-icon">✅</div><div class="nav-label">Checklist</div></div>
+  <div class="nav-item" id="nav-journal"><div class="nav-icon">📓</div><div class="nav-label">Journal</div></div>
+  <div class="nav-item" id="nav-pnl"><div class="nav-icon">📊</div><div class="nav-label">PnL</div></div>
+  <div class="nav-item" id="nav-screenshots"><div class="nav-icon">📸</div><div class="nav-label">Ekranlar</div></div>
+  <div class="nav-item" id="nav-account"><div class="nav-icon">💳</div><div class="nav-label">Hesap</div></div>
+</nav>
+
+<!-- CHECKLIST -->
+<div class="page active" id="page-checklist">
+  <div class="tab-row" id="pariteRow"></div>
+  <div class="sess-row" id="sessRow"></div>
+
+  <div class="card">
+    <div class="card-title">Günlük Bias</div>
+    <div class="bias-btns">
+      <button class="bias-btn bull" id="biasBull">📈 Bullish</button>
+      <button class="bias-btn bear" id="biasBear">📉 Bearish</button>
+    </div>
+    <textarea id="biasNote" rows="2" placeholder="Bias notun... (HTF seviyeleri, key levels)"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--accent2)">⚡ Main Konfirmeler — En az 2 tikli olmalı</div>
+    <div class="check-item main-conf" id="mc0">
+      <div class="check-box"></div>
+      <div><div class="check-label">SMT var mı?</div><div class="check-sublabel">DXY korelasyon kırılımı teyidi</div></div>
+    </div>
+    <div class="check-item main-conf" id="mc1">
+      <div class="check-box"></div>
+      <div><div class="check-label">HTF Bias uyumlu mu?</div><div class="check-sublabel">1D / 4H yön teyidi</div></div>
+    </div>
+    <div class="check-item main-conf" id="mc2">
+      <div class="check-box"></div>
+      <div><div class="check-label">CRT ve Time uyumlu mu?</div><div class="check-sublabel">4H / 8H CRT + doğru pencere</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 Kontrol Edilecekler</div>
+    <div class="check-item" id="cc0">
+      <div class="check-box"></div>
+      <div><div class="check-label">5M'de karakter değişimi var mı?</div><div class="check-sublabel">IFVG / yapı kırılımı</div></div>
+    </div>
+    <div class="check-item" id="cc1">
+      <div class="check-box"></div>
+      <div><div class="check-label">Monday Range kontrol edildi mi?</div><div class="check-sublabel">Fiyat range ile uyumlu mu?</div></div>
+    </div>
+    <div class="check-item" id="cc2">
+      <div class="check-box"></div>
+      <div><div class="check-label">Daily analiz yapıldı mı?</div><div class="check-sublabel">Günlük senaryo netleşti mi?</div></div>
+    </div>
+    <div class="check-item" id="cc3">
+      <div class="check-box"></div>
+      <div><div class="check-label">Asia range manipülasyon var mı?</div><div class="check-sublabel">Asia High/Low sweep edildi mi?</div></div>
+    </div>
+    <div class="check-item" id="cc4">
+      <div class="check-box"></div>
+      <div><div class="check-label">Stop & pozisyon büyüklüğü netleşti mi?</div></div>
+    </div>
+  </div>
+
+  <div style="background: linear-gradient(135deg, rgba(0,151,255,0.08), rgba(0,212,170,0.08)); border: 1px solid rgba(0,212,170,0.2); border-radius: 16px; padding: 20px; margin-bottom: 14px; text-align: center;">
+    <div style="font-size: 20px; margin-bottom: 10px">🧘</div>
+    <div style="font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; line-height: 1.7;">
+      Strateji senin. Bias'ın doğru.<br>
+      Şimdi tek işin beklemek ve kurala uymak.
+    </div>
+    <div style="height: 1px; background: rgba(0,212,170,0.15); margin: 12px 0;"></div>
+    <div style="font-size: 12px; color: var(--muted); line-height: 1.8; font-family: 'Space Mono', monospace;">
+      Kaçan işlem seni öldürmez.<br>
+      Kuralsız giren işlem öldürür.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Setup Skoru</div>
+    <div class="score-row"><div class="score-label">Main Konfirme</div><div class="score-val" id="scoreVal">0/3</div></div>
+    <div class="score-bar-bg"><div class="score-bar-fill" id="scoreBar" style="width:0%"></div></div>
+    <div class="score-warn" id="scoreWarn">⚠️ En az 2 main konfirme olmadan işlem alma!</div>
+    <div class="score-ok" id="scoreOk">✅ Konfirmeler tamam — işlem alınabilir!</div>
+    <div class="mt16"><button class="btn outline" id="resetBtn" style="width:100%">Sıfırla</button></div>
+  </div>
+</div>
+
+<!-- JOURNAL -->
+<div class="page" id="page-journal">
+  <button class="btn" id="newTradeBtn" style="width:100%;margin-bottom:16px;padding:14px;font-size:15px;">+ Yeni İşlem Ekle</button>
+  <div id="tradeList"></div>
+</div>
+
+<!-- PNL -->
+<div class="page" id="page-pnl">
+  <div class="pnl-period">
+    <div class="pnl-btn active" id="pnlWeek">Bu Hafta</div>
+    <div class="pnl-btn" id="pnlMonth">Bu Ay</div>
+    <div class="pnl-btn" id="pnlAll">Tümü</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Net Sonuç</div>
+    <div class="pnl-big" id="pnlBig">—</div>
+    <div class="pnl-grid">
+      <div class="pnl-stat"><div class="pnl-stat-val c-g" id="pnlTp">0</div><div class="pnl-stat-label">TP</div></div>
+      <div class="pnl-stat"><div class="pnl-stat-val c-r" id="pnlSl">0</div><div class="pnl-stat-label">SL</div></div>
+      <div class="pnl-stat"><div class="pnl-stat-val c-y" id="pnlBe">0</div><div class="pnl-stat-label">BE</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Winrate</div>
+    <div class="score-row mt8"><div class="score-label">TP / (TP+SL)</div><div class="score-val" id="winrateVal">—</div></div>
+    <div class="score-bar-bg mt8"><div class="score-bar-fill" id="winrateBar" style="width:0%"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Parite × Session Winrate</div>
+    <div id="breakdownCards"></div>
+  </div>
+</div>
+
+<!-- SCREENSHOTS -->
+<div class="page" id="page-screenshots">
+  <div class="ss-type-row">
+    <div class="ss-btn a-tp" id="ssTabTp">✅ TP</div>
+    <div class="ss-btn" id="ssTabStop">❌ Stop</div>
+  </div>
+  <div class="ss-area" id="ssAddArea">
+    <div style="font-size:32px;margin-bottom:8px">📷</div>
+    <div style="font-size:14px;color:var(--muted);font-weight:600">Görüntü Ekle</div>
+    <div style="font-size:11px;color:var(--muted2);margin-top:4px">Galerinden seç</div>
+  </div>
+  <input type="file" id="fileInput" accept="image/*" multiple>
+  <div class="ss-grid" id="ssGrid"></div>
+</div>
+
+<!-- ACCOUNT -->
+<div class="page" id="page-account">
+  <div class="card">
+    <div class="card-title">Funded Hesap</div>
+    <div class="dd-grid">
+      <div class="dd-item"><div class="dd-lbl">Hesap Büyüklüğü</div><div class="dd-val" id="accSize">—</div></div>
+      <div class="dd-item"><div class="dd-lbl">Drawdown</div><div class="dd-val r" id="accDD">—</div></div>
+      <div class="dd-item"><div class="dd-lbl">Mevcut Bakiye</div><div class="dd-val g" id="accBal">—</div></div>
+      <div class="dd-item"><div class="dd-lbl">Max DD Limiti</div><div class="dd-val y" id="accMaxDD">—</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Hesap Güncelle</div>
+    <div class="form-row"><label class="form-label">Hesap Büyüklüğü ($)</label><input type="number" id="inputSize" placeholder="10000"></div>
+    <div class="form-row"><label class="form-label">Mevcut Bakiye ($)</label><input type="number" id="inputBal" placeholder="9700"></div>
+    <div class="form-row"><label class="form-label">Max DD Limiti (%)</label><input type="number" id="inputMaxDD" placeholder="10"></div>
+    <button class="btn" id="saveAccBtn" style="width:100%">Kaydet</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Kurallarım</div>
+    <textarea id="rulesText" rows="5" placeholder="Kendi trading kurallarını yaz...&#10;Örn: Günde max 1 işlem&#10;2 main konfirme olmadan giriş yok"></textarea>
+    <button class="btn outline" id="saveRulesBtn" style="width:100%;margin-top:8px">Kaydet</button>
+  </div>
+</div>
+
+<!-- TRADE MODAL -->
+<div class="modal-overlay" id="tradeModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Yeni İşlem</div>
+    <div class="form-row"><label class="form-label">Parite</label><div class="multi-btn-row" id="tPariteRow"></div></div>
+    <div class="form-row"><label class="form-label">Session</label><div class="multi-btn-row" id="tSessRow"></div></div>
+    <div class="form-row">
+      <label class="form-label">Yön</label>
+      <div class="multi-btn-row">
+        <button class="sel-btn" id="tLong">📈 Long</button>
+        <button class="sel-btn" id="tShort">📉 Short</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Sonuç</label>
+      <div class="multi-btn-row">
+        <button class="sel-btn" id="tTP">✅ TP</button>
+        <button class="sel-btn" id="tSL">❌ SL</button>
+        <button class="sel-btn" id="tBE">🟡 BE</button>
+        <button class="sel-btn" id="tMiss">👁 Kaçtı</button>
+      </div>
+    </div>
+    <div class="form-row"><label class="form-label">RR</label><input type="number" id="tRR" placeholder="Örn: 2.5"></div>
+    <div class="form-row"><label class="form-label">Psikoloji Notu</label><textarea id="tPsych" rows="3" placeholder="Neden aldın / almadın?"></textarea></div>
+    <div class="divider"></div>
+    <button class="btn" id="saveTradeBtn" style="width:100%;padding:14px;font-size:15px">Kaydet</button>
+    <button class="btn outline" id="cancelTradeBtn" style="width:100%;margin-top:8px;padding:12px">İptal</button>
+  </div>
+</div>
+
+<script>
+const PARITES = ['EU','GU','XAU','Endeks','Others'];
+const PE = {EU:'🇪🇺',GU:'🇬🇧',XAU:'🥇',Endeks:'📈',Others:'🔀'};
+const SESSIONS = [{id:'london',label:'🇬🇧 London'},{id:'ny',label:'🗽 NY'},{id:'pm',label:'🌆 PM'}];
+
+let S = JSON.parse(localStorage.getItem('tl3')||'{}');
+if(!S.trades) S.trades=[];
+if(!S.screenshots) S.screenshots=[];
+if(!S.account) S.account={};
+if(!S.rules) S.rules='';
+if(!S.bias) S.bias='';
+if(!S.biasNote) S.biasNote='';
+
+let pnlPeriod='week', ssTab='tp';
+let tForm={parite:null,sess:null,dir:null,res:null};
+
+function sv(){localStorage.setItem('tl3',JSON.stringify(S));}
+
+// NAV
+function setupNav(){
+  ['checklist','journal','pnl','screenshots','account'].forEach(p=>{
+    const el=document.getElementById('nav-'+p);
+    function go(){
+      document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+      document.getElementById('page-'+p).classList.add('active');
+      el.classList.add('active');
+      if(p==='pnl') renderPnl();
+    }
+    el.addEventListener('click',go);
+    el.addEventListener('touchend',e=>{e.preventDefault();go();});
+  });
+}
+
+// HEADER
+function updateDate(){
+  const d=new Date(),days=['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+  document.getElementById('headerDate').textContent=days[d.getDay()]+' '+d.toLocaleDateString('tr-TR');
+}
+function updateDD(){
+  const a=S.account;
+  if(a.size&&a.balance){
+    const dd=((a.balance-a.size)/a.size*100).toFixed(2);
+    const el=document.getElementById('headerDD');
+    el.textContent=(dd>=0?'+':'')+dd+'%';
+    el.style.color=dd>=0?'var(--green)':'var(--red)';
+  }
+}
+
+// PARITE & SESSION TABS
+function buildTabs(){
+  const pr=document.getElementById('pariteRow');
+  pr.innerHTML='';
+  PARITES.forEach(p=>{
+    const el=document.createElement('div');
+    el.className='tab-pill'+(p==='EU'?' active eu':'');
+    el.textContent=PE[p]+' '+p;
+    el.dataset.p=p;
+    function tap(){
+      document.querySelectorAll('#pariteRow .tab-pill').forEach(x=>x.className='tab-pill');
+      el.className='tab-pill active '+p.toLowerCase();
+    }
+    el.addEventListener('click',tap);
+    el.addEventListener('touchend',e=>{e.preventDefault();tap();});
+    pr.appendChild(el);
+  });
+
+  const sr=document.getElementById('sessRow');
+  sr.innerHTML='';
+  SESSIONS.forEach((s,i)=>{
+    const el=document.createElement('div');
+    el.className='sess-pill'+(i===0?' active':'');
+    el.textContent=s.label;
+    el.dataset.s=s.id;
+    function tap(){
+      document.querySelectorAll('#sessRow .sess-pill').forEach(x=>x.classList.remove('active'));
+      el.classList.add('active');
+    }
+    el.addEventListener('click',tap);
+    el.addEventListener('touchend',e=>{e.preventDefault();tap();});
+    sr.appendChild(el);
+  });
+}
+
+// CHECKLIST
+function setupChecklist(){
+  document.querySelectorAll('.check-item').forEach(el=>{
+    function tap(){
+      el.classList.toggle('checked');
+      el.querySelector('.check-box').textContent=el.classList.contains('checked')?'✓':'';
+      updateScore();
+    }
+    el.addEventListener('click',tap);
+    el.addEventListener('touchend',e=>{e.preventDefault();tap();});
+  });
+  document.getElementById('resetBtn').addEventListener('click',()=>{
+    document.querySelectorAll('.check-item').forEach(el=>{
+      el.classList.remove('checked');
+      el.querySelector('.check-box').textContent='';
+    });
+    updateScore();
+  });
+}
+
+function updateScore(){
+  const checked=document.querySelectorAll('.main-conf.checked').length;
+  const total=3;
+  document.getElementById('scoreVal').textContent=checked+'/'+total;
+  document.getElementById('scoreBar').style.width=(checked/total*100)+'%';
+  document.getElementById('scoreWarn').style.display=checked>0&&checked<2?'block':'none';
+  document.getElementById('scoreOk').style.display=checked>=2?'block':'none';
+}
+
+// BIAS
+function setupBias(){
+  const bull=document.getElementById('biasBull'),bear=document.getElementById('biasBear'),note=document.getElementById('biasNote');
+  function set(d){S.bias=d;bull.classList.toggle('active',d==='bull');bear.classList.toggle('active',d==='bear');sv();}
+  bull.addEventListener('click',()=>set('bull'));
+  bear.addEventListener('click',()=>set('bear'));
+  if(S.bias) set(S.bias);
+  note.value=S.biasNote||'';
+  note.addEventListener('input',()=>{S.biasNote=note.value;sv();});
+}
+
+// JOURNAL
+function setupJournal(){
+  // Build modal parite buttons
+  const pr=document.getElementById('tPariteRow');
+  PARITES.forEach(p=>{
+    const b=document.createElement('button');
+    b.className='sel-btn'; b.textContent=PE[p]+' '+p;
+    b.addEventListener('click',()=>{
+      tForm.parite=p;
+      pr.querySelectorAll('.sel-btn').forEach(x=>x.className='sel-btn');
+      b.className='sel-btn a-'+p.toLowerCase();
+    });
+    pr.appendChild(b);
+  });
+
+  // Session buttons
+  const sr=document.getElementById('tSessRow');
+  SESSIONS.forEach(s=>{
+    const b=document.createElement('button');
+    b.className='sel-btn'; b.textContent=s.label;
+    b.addEventListener('click',()=>{
+      tForm.sess=s.id;
+      sr.querySelectorAll('.sel-btn').forEach(x=>x.className='sel-btn');
+      b.className='sel-btn a-'+s.id;
+    });
+    sr.appendChild(b);
+  });
+
+  // Dir
+  document.getElementById('tLong').addEventListener('click',()=>{tForm.dir='long';document.getElementById('tLong').className='sel-btn a-long';document.getElementById('tShort').className='sel-btn';});
+  document.getElementById('tShort').addEventListener('click',()=>{tForm.dir='short';document.getElementById('tShort').className='sel-btn a-short';document.getElementById('tLong').className='sel-btn';});
+
+  // Result
+  [['tTP','tp'],['tSL','sl'],['tBE','be'],['tMiss','miss']].forEach(([id,val])=>{
+    document.getElementById(id).addEventListener('click',()=>{
+      tForm.res=val;
+      ['tTP','tSL','tBE','tMiss'].forEach(x=>document.getElementById(x).className='sel-btn');
+      document.getElementById(id).className='sel-btn a-'+val;
+    });
+  });
+
+  document.getElementById('newTradeBtn').addEventListener('click',()=>document.getElementById('tradeModal').classList.add('open'));
+  document.getElementById('cancelTradeBtn').addEventListener('click',()=>document.getElementById('tradeModal').classList.remove('open'));
+  document.getElementById('saveTradeBtn').addEventListener('click',()=>{
+    if(!tForm.parite||!tForm.sess||!tForm.dir||!tForm.res){alert('Tüm alanları seç!');return;}
+    S.trades.unshift({id:Date.now(),date:new Date().toISOString(),parite:tForm.parite,sess:tForm.sess,dir:tForm.dir,res:tForm.res,rr:document.getElementById('tRR').value,psych:document.getElementById('tPsych').value});
+    sv(); renderTrades();
+    document.getElementById('tradeModal').classList.remove('open');
+    tForm={parite:null,sess:null,dir:null,res:null};
+    document.getElementById('tPariteRow').querySelectorAll('.sel-btn').forEach(b=>b.className='sel-btn');
+    document.getElementById('tSessRow').querySelectorAll('.sel-btn').forEach(b=>b.className='sel-btn');
+    ['tLong','tShort','tTP','tSL','tBE','tMiss'].forEach(id=>document.getElementById(id).className='sel-btn');
+    document.getElementById('tRR').value='';
+    document.getElementById('tPsych').value='';
+  });
+  renderTrades();
+}
+
+function renderTrades(){
+  const el=document.getElementById('tradeList');
+  if(!S.trades.length){el.innerHTML='<div class="empty"><div class="empty-icon">📓</div><div class="empty-text">Henüz işlem yok</div></div>';return;}
+  el.innerHTML=S.trades.map(t=>{
+    const d=new Date(t.date);
+    const ds=d.toLocaleDateString('tr-TR')+' '+d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+    const sl={london:'🇬🇧 London',ny:'🗽 NY',pm:'🌆 PM'}[t.sess]||t.sess;
+    const rl={tp:'TP',sl:'SL',be:'BE',miss:'Kaçtı'}[t.res];
+    return`<div class="trade-item ${t.res}">
+      <div class="trade-top"><div class="trade-date">${ds}</div><div class="trade-badge ${t.res}">${rl}</div></div>
+      <div class="trade-tags">
+        <span class="trade-tag">${PE[t.parite]||''} ${t.parite}</span>
+        <span class="trade-tag">${sl}</span>
+        <span class="trade-tag">${t.dir==='long'?'📈 Long':'📉 Short'}${t.rr?' · '+t.rr+'R':''}</span>
+      </div>
+      ${t.psych?`<div class="trade-psych">"${t.psych}"</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// PNL
+function filterT(){
+  const now=new Date();
+  return S.trades.filter(t=>{
+    const d=new Date(t.date);
+    if(pnlPeriod==='week'){const s=new Date(now);s.setDate(now.getDate()-now.getDay());s.setHours(0,0,0,0);return d>=s;}
+    if(pnlPeriod==='month') return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+    return true;
+  });
+}
+
+function renderPnl(){
+  const trades=filterT();
+  const tp=trades.filter(t=>t.res==='tp').length;
+  const sl=trades.filter(t=>t.res==='sl').length;
+  const be=trades.filter(t=>t.res==='be').length;
+  const tot=tp+sl; const wr=tot>0?Math.round(tp/tot*100):0; const net=tp-sl;
+  document.getElementById('pnlTp').textContent=tp;
+  document.getElementById('pnlSl').textContent=sl;
+  document.getElementById('pnlBe').textContent=be;
+  const big=document.getElementById('pnlBig');
+  big.textContent=(net>=0?'+':'')+net+'R';
+  big.style.color=net>0?'var(--green)':net<0?'var(--red)':'var(--muted)';
+  document.getElementById('winrateVal').textContent=tot>0?wr+'%':'—';
+  document.getElementById('winrateBar').style.width=wr+'%';
+
+  // Parite × Session kartları
+  const cards = PARITES.map(p => {
+    const pt = trades.filter(t => t.parite === p);
+    if (!pt.length) return '';
+    const sessCards = SESSIONS.map(s => {
+      const f = pt.filter(t => t.sess === s.id);
+      const tp2 = f.filter(t=>t.res==='tp').length;
+      const sl2 = f.filter(t=>t.res==='sl').length;
+      const tot2 = tp2+sl2;
+      const wr2 = tot2 > 0 ? Math.round(tp2/tot2*100) : null;
+      const wrColor = wr2===null ? 'var(--muted)' : wr2>=60 ? 'var(--green)' : wr2>=40 ? 'var(--yellow)' : 'var(--red)';
+      const sLabel = {london:'London',ny:'NY',pm:'PM'}[s.id];
+      return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">${sLabel}</div>
+        <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${wrColor};margin-bottom:4px">${wr2!==null?wr2+'%':'—'}</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px">${tp2}TP · ${sl2}SL</div>
+        <div style="background:var(--muted2);border-radius:99px;height:4px;overflow:hidden">
+          <div style="height:100%;width:${wr2||0}%;background:${wrColor};border-radius:99px;transition:width 0.4s"></div>
+        </div>
+      </div>`;
+    }).join('');
+    const alltp = pt.filter(t=>t.res==='tp').length;
+    const allsl = pt.filter(t=>t.res==='sl').length;
+    const allnet = alltp-allsl;
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:15px;font-weight:800">${PE[p]} ${p}</div>
+        <div style="font-family:'Space Mono',monospace;font-size:13px;color:${allnet>=0?'var(--green)':'var(--red)'}">${allnet>=0?'+':''}${allnet}R · ${alltp+allsl} işlem</div>
+      </div>
+      <div style="display:flex;gap:8px">${sessCards}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('breakdownCards').innerHTML = cards || '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Veri yok</div></div>';
+
+  // Period btns
+  [['pnlWeek','week'],['pnlMonth','month'],['pnlAll','all']].forEach(([id,p])=>{
+    const el=document.getElementById(id);
+    el.onclick=()=>{pnlPeriod=p;document.querySelectorAll('.pnl-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderPnl();};
+  });
+}
+
+// SCREENSHOTS
+function setupScreenshots(){
+  const tpBtn=document.getElementById('ssTabTp'),stopBtn=document.getElementById('ssTabStop');
+  tpBtn.addEventListener('click',()=>{ssTab='tp';tpBtn.className='ss-btn a-tp';stopBtn.className='ss-btn';renderSS();});
+  stopBtn.addEventListener('click',()=>{ssTab='stop';stopBtn.className='ss-btn a-stop';tpBtn.className='ss-btn';renderSS();});
+  document.getElementById('ssAddArea').addEventListener('click',()=>document.getElementById('fileInput').click());
+  document.getElementById('fileInput').addEventListener('change',function(){
+    Array.from(this.files).forEach(f=>{
+      const r=new FileReader();
+      r.onload=e=>{S.screenshots.push({id:Date.now()+Math.random(),data:e.target.result,type:ssTab,date:new Date().toISOString()});sv();renderSS();};
+      r.readAsDataURL(f);
+    });
+    this.value='';
+  });
+  renderSS();
+}
+
+function renderSS(){
+  const grid=document.getElementById('ssGrid');
+  const filtered=S.screenshots.filter(s=>s.type===ssTab);
+  if(!filtered.length){grid.innerHTML='<div class="empty"><div class="empty-icon">'+(ssTab==='tp'?'✅':'❌')+'</div><div class="empty-text">Henüz görüntü yok</div></div>';return;}
+  grid.innerHTML=filtered.map(s=>`<div class="ss-thumb"><img src="${s.data}"><button class="ss-del" data-id="${s.id}">✕</button></div>`).join('');
+  grid.querySelectorAll('.ss-del').forEach(btn=>{
+    btn.addEventListener('click',()=>{S.screenshots=S.screenshots.filter(x=>String(x.id)!==btn.dataset.id);sv();renderSS();});
+  });
+}
+
+// ACCOUNT
+function setupAccount(){
+  document.getElementById('saveAccBtn').addEventListener('click',()=>{
+    const size=parseFloat(document.getElementById('inputSize').value);
+    const bal=parseFloat(document.getElementById('inputBal').value);
+    const maxDD=parseFloat(document.getElementById('inputMaxDD').value)||10;
+    if(!size||!bal){alert('Hesap bilgilerini gir!');return;}
+    S.account={size,balance:bal,maxDD};sv();renderAcc();updateDD();
+  });
+  document.getElementById('saveRulesBtn').addEventListener('click',()=>{
+    S.rules=document.getElementById('rulesText').value;sv();
+    const btn=document.getElementById('saveRulesBtn');
+    btn.textContent='✓ Kaydedildi';setTimeout(()=>btn.textContent='Kaydet',1500);
+  });
+  document.getElementById('rulesText').value=S.rules||'';
+  renderAcc();
+}
+
+function renderAcc(){
+  const a=S.account;if(!a.size)return;
+  const dd=((a.balance-a.size)/a.size*100).toFixed(2);
+  document.getElementById('accSize').textContent='$'+a.size.toLocaleString();
+  document.getElementById('accBal').textContent='$'+a.balance.toLocaleString();
+  document.getElementById('accDD').textContent=(dd>=0?'+':'')+dd+'%';
+  document.getElementById('accMaxDD').textContent='-$'+(a.size*(a.maxDD||10)/100).toFixed(0);
+  document.getElementById('inputSize').value=a.size;
+  document.getElementById('inputBal').value=a.balance;
+  document.getElementById('inputMaxDD').value=a.maxDD||10;
+  updateDD();
+}
+
+// INIT
+setupNav(); buildTabs(); setupChecklist(); setupBias(); setupJournal(); setupScreenshots(); setupAccount();
+updateDate(); updateDD(); renderPnl();
+setInterval(updateDate,60000);
+</script>
+</body>
+</html>
